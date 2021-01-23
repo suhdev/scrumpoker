@@ -1,6 +1,12 @@
 import { action, computed, makeObservable, observable } from "mobx";
 import { IUserIdentity } from "../auth/context";
-import { db } from "../firebase";
+import {
+  db,
+  getScrumPokerTicketInfoRef,
+  getScrumPokerTicketRef,
+  getScrumPokerTicketVotesRef,
+  getSessionUsersRef,
+} from "../firebase";
 import { MAX_VOTE_TIME_IN_SECONDS } from "./constants";
 import differenceInSeconds from "date-fns/differenceInSeconds";
 import { toaster } from "../init";
@@ -34,6 +40,7 @@ export class ScrumPokerModel {
   expiryDate: Date = new Date();
   intervalId: any = -1;
   started: boolean = false;
+  canStart: boolean = false;
 
   get userVotes() {
     return this.users.map((user) => ({
@@ -60,6 +67,7 @@ export class ScrumPokerModel {
       users: observable.ref,
       votes: observable.ref,
       started: observable,
+      canStart: observable,
       expiryDate: observable,
       userVotes: computed,
       percentage: computed,
@@ -69,6 +77,10 @@ export class ScrumPokerModel {
       code: observable,
       text: observable,
     });
+  }
+
+  getVoteForUser(userId: string) {
+    return this.votes[userId] || null;
   }
 
   @action.bound
@@ -116,28 +128,21 @@ export class ScrumPokerModel {
   }
 
   setup(sessionId: string, ticketId: string, user: IUserIdentity) {
-    const ref = db
-      .ref("sessions")
-      .child(sessionId)
-      .child(`scrumpoker`)
-      .child(ticketId);
+    const ref = getScrumPokerTicketRef(sessionId, ticketId);
 
     this.ticketRef = ref;
 
-    const votesRef = ref.child("votes");
+    const votesRef = getScrumPokerTicketVotesRef(sessionId, ticketId);
     this.votesRef = votesRef;
     votesRef.on(
       "value",
       action((snapshot) => {
         const val = snapshot.val();
-
-        if (val) {
-          this.votes = val;
-        }
+        this.votes = val || {};
       })
     );
 
-    const ticketInfoRef = ref.child("info");
+    const ticketInfoRef = getScrumPokerTicketInfoRef(sessionId, ticketId);
 
     ticketInfoRef.on(
       "value",
@@ -155,17 +160,27 @@ export class ScrumPokerModel {
               },
               `${Date.now()}`
             );
-            this.startTimer();
           }
           this.code = val.code;
           this.text = val.text;
+          this.startTimer();
           return;
         }
-        this.resetTimer();
       })
     );
 
-    const usersRef = db.ref("sessions").child(sessionId).child("users");
+    const usersRef = getSessionUsersRef(sessionId);
+
+    const isOwnerRef = usersRef
+      .child(user.id)
+      .child("permissions")
+      .child("isOwner");
+    isOwnerRef.on(
+      "value",
+      action((snapshot) => {
+        this.canStart = snapshot.val() || false;
+      })
+    );
 
     usersRef.on(
       "value",
@@ -179,6 +194,7 @@ export class ScrumPokerModel {
       votesRef.off("value");
       ticketInfoRef.off("value");
       usersRef.off("value");
+      isOwnerRef.off("value");
       this.stopTimer();
     };
   }

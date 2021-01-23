@@ -1,83 +1,92 @@
 import {
   Button,
   ControlGroup,
-  FormGroup,
   InputGroup,
   Label,
+  ResizeSensor,
 } from "@blueprintjs/core";
 import React, { useState } from "react";
 import styled from "styled-components";
-import { Async } from "react-async";
-import { Redirect, Route, useHistory } from "react-router-dom";
-import { setLastSessionId, useUserIdentity } from "../auth/context";
+import { useUserIdentity } from "../auth/context";
 import md5 from "md5";
+import { signIn } from "../firebase";
+import { useResize } from "../hooks/useResize";
+import { Logo } from "../assets/logo";
+import { FlexSpaceAround } from "../helpers/align";
 
 export function useQueryStringParam(key: string) {
   return new URLSearchParams(window.location.search.slice(1)).get(key);
 }
 
 export const LoginPage: React.FC = () => {
-  const { setUser, user } = useUserIdentity();
-  const history = useHistory();
-  const sessionId = useQueryStringParam("sessionId");
-  const [fullname, setFullname] = useState("");
+  const { width, onResize } = useResize();
+  const { setUser } = useUserIdentity();
   const [email, setEmail] = useState("");
-  const [session, setSessionId] = useState(sessionId || "");
-
-  if (user) {
-    return <Redirect to="/" />;
-  }
+  const [password, setPassword] = useState("");
 
   return (
-    <Wrapper>
-      <ControlGroup fill={true} vertical={false}>
-        <LeftLabel>Full Name</LeftLabel>
-        <InputGroup
-          placeholder="Full Name"
-          value={fullname}
-          onChange={(e) => setFullname(e.target.value)}
-        />
-      </ControlGroup>
-      <ControlGroup fill={true} vertical={false}>
-        <LeftLabel>Email Address</LeftLabel>
-        <InputGroup
-          placeholder="Email address"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-      </ControlGroup>
-      <br />
-      <ControlGroup fill={true} vertical={false}>
-        <InputGroup
-          placeholder="Session id"
-          value={session}
-          onChange={(e) => setSessionId(e.target.value)}
-        />
-        <Button icon="plus">Create new</Button>
-      </ControlGroup>
-      <br />
-      <Button
-        onClick={() => {
-          setLastSessionId(session);
-          setUser({ email, fullname, id: md5(email.toLowerCase()) });
-
-          history.push(`/sessions/${session}`);
-        }}
-      >
-        Join
-      </Button>
-    </Wrapper>
+    <ResizeSensor onResize={onResize}>
+      <Wrapper>
+        <FlexSpaceAround direction="row">
+          <Logo size={"xl"} />
+          <h1>Scrum Miester</h1>
+        </FlexSpaceAround>
+        <br />
+        <ControlGroup fill={true} vertical={width < 400}>
+          <LeftLabel>Email Address</LeftLabel>
+          <InputGroup
+            placeholder="Email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </ControlGroup>
+        {width < 400 ? <br /> : null}
+        <ControlGroup fill={true} vertical={width < 400}>
+          <LeftLabel>Password</LeftLabel>
+          <InputGroup
+            placeholder="Password"
+            value={password}
+            type="password"
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </ControlGroup>
+        <br />
+        <Button
+          intent="primary"
+          onClick={async () => {
+            try {
+              const user = await signIn(email, password);
+              setUser({
+                fullname: user.user!.displayName as string,
+                email: user.user!.email as string,
+                id: user.user!.uid,
+              });
+            } catch (err) {
+              console.log(err);
+            }
+          }}
+        >
+          Sign in
+        </Button>
+      </Wrapper>
+    </ResizeSensor>
   );
 };
 
 const Wrapper = styled.div`
   margin-left: auto;
   margin-right: auto;
-  max-width: 460px;
+  max-width: 500px;
   padding-top: 100px;
   padding-bottom: 100px;
+  padding-left: ${(p) => p.theme.spacing.md};
+  padding-right: ${(p) => p.theme.spacing.md};
 `;
 
 const LeftLabel = styled(Label)`
   width: 100px;
 `;
+
+export function createUserId(email: string) {
+  return md5(email.trim().toLowerCase());
+}

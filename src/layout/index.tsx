@@ -13,6 +13,8 @@ export const HeaderNav = styled.div`
   width: 100%;
   position: relative;
   flex-direction: row;
+  top: 0px;
+  position: sticky;
 `;
 export const Content = styled.div`
   display: flex;

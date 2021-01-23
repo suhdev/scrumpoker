@@ -1,6 +1,6 @@
 import { makeObservable, observable, action } from "mobx";
 import { IUserIdentity } from "../auth/context";
-import { db } from "../firebase";
+import { db, getSessionUserPermissionsRef } from "../firebase";
 import { toaster } from "../init";
 
 export class UserListModel {
@@ -56,6 +56,12 @@ export class UserListModel {
     const users = this.users.slice(0);
     users[idx] = user;
     this.users = users;
+  }
+
+  async makeOwner(sessionId: string, userId: string) {
+    await getSessionUserPermissionsRef(sessionId, userId)
+      .child("isOwner")
+      .set(true);
   }
 
   setup(sessionId: string, user: IUserIdentity) {

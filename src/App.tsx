@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import md5 from "md5";
 import "@blueprintjs/core/lib/css/blueprint.css";
 import "@blueprintjs/icons/lib/css/blueprint-icons.css";
+import "@blueprintjs/select/lib/css/blueprint-select.css";
 import "./App.css";
 import {
   Link,
@@ -12,62 +12,47 @@ import {
   useHistory,
   useParams,
 } from "react-router-dom";
-import { appHistory, toaster } from "./init";
-import { LoginPage } from "./login";
+import { appHistory } from "./init";
 import {
   AuthProvider,
-  getLastSessionId,
-  IUserIdentity,
   setLastSessionId,
   useUserIdentity,
 } from "./auth/context";
-import {
-  ControlGroup,
-  InputGroup,
-  Button,
-  Label,
-  Menu,
-  MenuItem,
-  Alignment,
-  Classes,
-  Navbar,
-  AnchorButton,
-  ButtonGroup,
-} from "@blueprintjs/core";
-import styled from "styled-components";
-import { db } from "./firebase";
-import { action, makeObservable, observable, runInAction } from "mobx";
-import { rmdir } from "fs";
-import { observer } from "mobx-react";
-import { SessionUsers } from "./usersList";
-import { Layout, HeaderNav, Content, LeftNav, WorkingArea } from "./layout";
+import { Button, ButtonGroup, Menu } from "@blueprintjs/core";
+import { ThemeProvider } from "styled-components";
+import { Layout, Content, WorkingArea } from "./layout";
 import { ScrumPokerPage } from "./scrumPoker";
 import { RetroPage } from "./retro";
+import { getScrumPokerTicketsRef } from "./firebase";
+import { observer } from "mobx-react";
+import { AttemptLoginPage } from "./login/attemptLogin";
+import { LogoutPage } from "./login/logout";
+import { StartPage } from "./startPage";
+import { TopNav } from "./layout/topNav";
+import { useSessionIdParam } from "./hooks/useSessionIdParam";
+import { DefaultTheme } from "./theme";
+import { ProfilePage } from "./profile";
 
 function App() {
   return (
-    <AuthProvider>
-      <Router history={appHistory}>
-        <Switch>
-          <Route path="/login">
-            <LoginPage />
-          </Route>
-          <Route path="*">
-            <Application>
-              <Switch>
-                <Route path="/sessions/:sessionId">
-                  <ScrumPokerSession />
-                </Route>
-                <Route path="*">
-                  <SessionRedirect />
-                </Route>
-              </Switch>
-            </Application>
-          </Route>
-        </Switch>
-      </Router>
-      ;
-    </AuthProvider>
+    <ThemeProvider theme={DefaultTheme}>
+      <AuthProvider>
+        <Router history={appHistory}>
+          <Switch>
+            <Route path="/login">
+              <AttemptLoginPage />
+            </Route>
+            <Route path="/signup">{/* <SignUpPage /> */}</Route>
+            <Route path="/logout">
+              <LogoutPage />
+            </Route>
+            <Route path="*">
+              <Application />
+            </Route>
+          </Switch>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
@@ -80,100 +65,43 @@ const Application: React.FC = ({ children }) => {
     return <Redirect to="/login" />;
   }
 
-  return children as any;
+  return <ScrumPokerSessionInner />;
 };
 
-const ScrumPokerSession: React.FC = () => {
+const AppInner: React.FC = ({ children }) => {
   const { sessionId } = useParams<{ sessionId: string }>();
   useEffect(() => {
     setLastSessionId(sessionId);
   }, [sessionId]);
 
-  return <ScrumPokerSessionInner key={sessionId} />;
+  return <React.Fragment key={sessionId}>{children}</React.Fragment>;
 };
 
-export function useSessionIdParam() {
-  return (useParams() as { sessionId: string }).sessionId;
-}
-
 const ScrumPokerSessionInner: React.FC = () => {
-  const sessionId = useSessionIdParam();
-  const history = useHistory();
   return (
     <Layout>
-      <HeaderNav>
-        <Navbar>
-          <Navbar.Group align={Alignment.LEFT}>
-            <Navbar.Heading>Scrum Miester</Navbar.Heading>
-            <Navbar.Divider />
-            <Link to="/abc" className="bp3-menu-item bp3-icon-layout-circle">
-              abc
-            </Link>
-            <Link to="/good" className="bp3-menu-item bp3-icon-layout-circle">
-              good
-            </Link>
-          </Navbar.Group>
-        </Navbar>
-      </HeaderNav>
+      <TopNav />
       <Content>
-        <LeftNav className={Classes.ELEVATION_1}>
-          <SessionUsers />
-          <ul className="bp3-menu bp3-list-unstyled">
-            <li className="bp3-menu-header">
-              <h6 className="bp3-heading">Apps</h6>
-            </li>
-            <li>
-              <Link
-                type="button"
-                to={`/sessions/${sessionId}/scrum-poker`}
-                className="bp3-menu-item bp3-icon-ninja"
-              >
-                Scrum Poker
-              </Link>
-            </li>
-            <li>
-              <Link
-                type="button"
-                to={`/sessions/${sessionId}/retro`}
-                className="bp3-menu-item bp3-icon-data-lineage"
-              >
-                Retro
-              </Link>
-            </li>
-          </ul>
-        </LeftNav>
         <WorkingArea>
           <Switch>
+            <Route path="/start">
+              <StartPage />
+            </Route>
+            <Route path="/profile">
+              <ProfilePage />
+            </Route>
             <Route path="/sessions/:sessionId/scrum-poker">
-              <ScrumPokerPage />
+              <AppInner>
+                <ScrumPokerPage />
+              </AppInner>
             </Route>
             <Route path="/sessions/:sessionId/retro">
               <RetroPage />
             </Route>
-            <Route path="*">
-              <div className="bp3-non-ideal-state">
-                <div className="bp3-non-ideal-state-visual">
-                  <span className="bp3-icon bp3-icon-folder-open"></span>
-                </div>
-                <h4 className="bp3-heading">What would you like to do</h4>
-                <div>Scrum Poker or Retro</div>
-                <ButtonGroup>
-                  <Button
-                    icon="ninja"
-                    onClick={() =>
-                      history.push(`/sessions/${sessionId}/scrum-poker`)
-                    }
-                  >
-                    Scrum Poker
-                  </Button>
-                  <Button
-                    icon="data-lineage"
-                    onClick={() => history.push(`/sessions/${sessionId}/retro`)}
-                  >
-                    Retro
-                  </Button>
-                </ButtonGroup>
-              </div>
+            <Route path="/sessions/:sessionId">
+              <AppInner>
+                <AppPicker />
+              </AppInner>
             </Route>
           </Switch>
         </WorkingArea>
@@ -182,69 +110,69 @@ const ScrumPokerSessionInner: React.FC = () => {
   );
 };
 
-class BoundedList<TItem> {
-  count: number;
-  @observable.ref items: TItem[] = [];
-
-  constructor(count: number) {
-    this.count = count;
-    this.items = [];
-  }
-
-  @action.bound
-  add(item: TItem) {
-    if (this.items.length === this.count) {
-      return;
-    }
-    this.items = [...this.items, item];
-  }
-
-  @action.bound
-  remove(item: TItem) {
-    this.items = this.items.filter((e) => e !== item);
-  }
-}
-
-const SessionRedirect: React.FC = () => {
-  return <JoinSessionPage />;
+const AppPicker: React.FC = () => {
+  const sessionId = useSessionIdParam();
+  const history = useHistory();
+  return (
+    <div className="bp3-non-ideal-state" style={{ paddingBottom: "1rem" }}>
+      <div className="bp3-non-ideal-state-visual">
+        <span className="bp3-icon bp3-icon-folder-open"></span>
+      </div>
+      <h4 className="bp3-heading">What would you like to do</h4>
+      <div>Scrum Poker or Retro</div>
+      <ButtonGroup>
+        <Button
+          icon="ninja"
+          onClick={() => history.push(`/sessions/${sessionId}/scrum-poker`)}
+        >
+          Scrum Poker
+        </Button>
+        <Button
+          icon="data-lineage"
+          onClick={() => history.push(`/sessions/${sessionId}/retro`)}
+        >
+          Retro
+        </Button>
+      </ButtonGroup>
+    </div>
+  );
 };
 
-const JoinSessionPage: React.FC = () => {
-  const history = useHistory();
-  const [session, setSessionId] = useState(
-    getLastSessionId() || `${Date.now()}`
-  );
+export const TicketList: React.FC = observer(() => {
+  const { sessionId, ticketId } = useParams<{
+    sessionId: string;
+    ticketId: string;
+  }>();
+  const [tickets, setTickets] = useState<string[]>([]);
+
+  useEffect(() => {
+    const ref = getScrumPokerTicketsRef(sessionId);
+
+    ref.on("value", (val) => {
+      setTickets(Object.keys(val.val() || {}));
+    });
+
+    return () => {
+      ref.off("value");
+    };
+  }, [sessionId, setTickets]);
 
   return (
-    <Wrapper>
-      <h1>Join a session</h1>
-      <p>Please enter the session id you want to join</p>
-      <ControlGroup fill={true} vertical={false}>
-        <InputGroup
-          placeholder="Session id"
-          value={session}
-          onChange={(e) => setSessionId(e.target.value)}
-        />
-        <Button icon="plus">Create new</Button>
-      </ControlGroup>
-      <br />
-      <Button
-        onClick={() => {
-          setLastSessionId(session);
-
-          history.push(`/sessions/${session}`);
-        }}
-      >
-        Join
-      </Button>
-    </Wrapper>
+    <Menu>
+      <li className="bp3-menu-header">
+        <h6 className="bp3-heading">Tickets in this session</h6>
+      </li>
+      {tickets.map((t) => (
+        <Link
+          key={t}
+          to={`/sessions/${sessionId}/scrum-poker/${t}`}
+          className={`bp3-menu-item bp3-icon-ninja ${
+            ticketId === t ? "bp3-active" : ""
+          }`}
+        >
+          {t}
+        </Link>
+      ))}
+    </Menu>
   );
-};
-
-const Wrapper = styled.div`
-  margin-left: auto;
-  margin-right: auto;
-  max-width: 460px;
-  padding-top: 100px;
-  padding-bottom: 100px;
-`;
+});
