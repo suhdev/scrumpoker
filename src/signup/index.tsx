@@ -5,10 +5,9 @@ import { Redirect, useHistory } from "react-router-dom";
 import { useUserIdentity } from "../auth/context";
 import md5 from "md5";
 import { signUp } from "../firebase";
-
-export function useQueryStringParam(key: string) {
-  return new URLSearchParams(window.location.search.slice(1)).get(key);
-}
+import { Logo } from "../assets/logo";
+import { FlexSpaceAround, FlexSpaceBetween } from "../helpers/align";
+import { useQueryStringParam } from "../hooks/useQueryStringParam";
 
 export const SignUpPage: React.FC = () => {
   const { user, setUser } = useUserIdentity();
@@ -17,6 +16,7 @@ export const SignUpPage: React.FC = () => {
   const [fullname, setFullname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const queryStringSessionId = useQueryStringParam("sessionId");
 
   if (user) {
     return <Redirect to="/" />;
@@ -24,6 +24,11 @@ export const SignUpPage: React.FC = () => {
 
   return (
     <Wrapper>
+      <FlexSpaceAround direction="row">
+        <Logo size={"xl"} />
+        <h1>Scrum Miester</h1>
+      </FlexSpaceAround>
+      <br />
       <ControlGroup fill={true} vertical={false}>
         <LeftLabel>Full Name</LeftLabel>
         <InputGroup
@@ -50,43 +55,37 @@ export const SignUpPage: React.FC = () => {
         />
       </ControlGroup>
       <br />
-      <Button
-        intent="primary"
-        onClick={async () => {
-          const user = await signUp(fullname, email, password);
-          setUser({
-            email: user.user!.email as string,
-            fullname: user.user!.displayName as string,
-            id: user.user!.uid,
-          });
-          history.push(`/start`);
-        }}
-      >
-        Sign in
-      </Button>
+      <FlexSpaceBetween>
+        <Button
+          intent="primary"
+          onClick={async () => {
+            const user = await signUp(fullname, email, password);
+            setUser({
+              email: user.user!.email as string,
+              fullname: user.user!.displayName as string,
+              id: user.user!.uid,
+            });
+            history.push(`/start`);
+          }}
+        >
+          Sign Up
+        </Button>
+        <Button
+          intent="success"
+          onClick={async () => {
+            history.push(
+              `/login${
+                queryStringSessionId ? `?sessionId=${queryStringSessionId}` : ""
+              }`
+            );
+          }}
+        >
+          Login
+        </Button>
+      </FlexSpaceBetween>
     </Wrapper>
   );
 };
-
-// <h2>What would you like to do?</h2>
-
-// <Tabs
-//   id="LoginMethodTabs"
-//   onChange={setTabId as any}
-//   selectedTabId={tabId}
-//   large
-// >
-//   <Tab
-//     id="join"
-//     title="Join an existing session"
-//     panel={<JoinSession onJoin={onJoin} />}
-//   />
-//   <Tab
-//     id="new"
-//     title="Create new session"
-//     panel={<CreateNewSession email={email} fullname={fullname} />}
-//   />
-// </Tabs>
 
 const Wrapper = styled.div`
   margin-left: auto;

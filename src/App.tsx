@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import "@blueprintjs/core/lib/css/blueprint.css";
 import "@blueprintjs/icons/lib/css/blueprint-icons.css";
 import "@blueprintjs/select/lib/css/blueprint-select.css";
@@ -18,12 +18,12 @@ import {
   setLastSessionId,
   useUserIdentity,
 } from "./auth/context";
-import { Button, ButtonGroup, Menu } from "@blueprintjs/core";
-import { ThemeProvider } from "styled-components";
+import { Button, ButtonGroup, Menu, Spinner } from "@blueprintjs/core";
+import styled, { ThemeProvider } from "styled-components";
 import { Layout, Content, WorkingArea } from "./layout";
 import { ScrumPokerPage } from "./scrumPoker";
 import { RetroPage } from "./retro";
-import { getScrumPokerTicketsRef } from "./firebase";
+import { getScrumPokerTicketsRef, getSessionRef } from "./firebase";
 import { observer } from "mobx-react";
 import { AttemptLoginPage } from "./login/attemptLogin";
 import { LogoutPage } from "./login/logout";
@@ -32,6 +32,10 @@ import { TopNav } from "./layout/topNav";
 import { useSessionIdParam } from "./hooks/useSessionIdParam";
 import { DefaultTheme } from "./theme";
 import { ProfilePage } from "./profile";
+import { Async } from "react-async";
+import { SessionUsers } from "./usersList";
+import { SignUpPage } from "./signup";
+import { useQueryStringParam } from "./hooks/useQueryStringParam";
 
 function App() {
   return (
@@ -42,7 +46,9 @@ function App() {
             <Route path="/login">
               <AttemptLoginPage />
             </Route>
-            <Route path="/signup">{/* <SignUpPage /> */}</Route>
+            <Route path="/signup">
+              <SignUpPage />
+            </Route>
             <Route path="/logout">
               <LogoutPage />
             </Route>
@@ -62,19 +68,72 @@ const Application: React.FC = ({ children }) => {
   const { user } = useUserIdentity();
 
   if (!user) {
-    return <Redirect to="/login" />;
+    return (
+      <Switch>
+        <Route path="/sessions/:sessionId">
+          <LoginRedirect />
+        </Route>
+        <Route path="*">
+          <LoginRedirect />
+        </Route>
+      </Switch>
+    );
   }
 
   return <ScrumPokerSessionInner />;
 };
 
+const LoginRedirect = () => {
+  const sessionIdParam = useSessionIdParam();
+  const sessionId = useQueryStringParam("sessionId");
+  const sId = sessionIdParam || sessionId;
+
+  if (sId) {
+    return <Redirect to={`/login?sessionId=${sId}`} />;
+  }
+  return <Redirect to="/login" />;
+};
+
 const AppInner: React.FC = ({ children }) => {
   const { sessionId } = useParams<{ sessionId: string }>();
-  useEffect(() => {
+  const history = useHistory();
+  const loadSession = useCallback(async () => {
+    const ref = getSessionRef(sessionId);
+    const result = await ref.get();
+    if (!result.val()) {
+      throw new Error("Session does not exist");
+    }
     setLastSessionId(sessionId);
+    return result.val();
   }, [sessionId]);
 
-  return <React.Fragment key={sessionId}>{children}</React.Fragment>;
+  return (
+    <Async promiseFn={loadSession} key={sessionId}>
+      <Async.Loading>
+        <Spinner />
+      </Async.Loading>
+      <Async.Resolved>{() => children}</Async.Resolved>
+      <Async.Rejected>
+        {(err) => (
+          <Wrapper>
+            <div className="bp3-callout bp3-intent-danger bp3-icon-warning-sign">
+              <h4 className="bp3-heading ">Could not find session</h4>
+              {err.message}
+            </div>
+            <br />
+            <Button
+              intent="primary"
+              onClick={() => {
+                history.push(`/start`);
+              }}
+            >
+              Back
+            </Button>
+          </Wrapper>
+        )}
+      </Async.Rejected>
+    </Async>
+  );
 };
 
 const ScrumPokerSessionInner: React.FC = () => {
@@ -90,19 +149,25 @@ const ScrumPokerSessionInner: React.FC = () => {
             <Route path="/profile">
               <ProfilePage />
             </Route>
-            <Route path="/sessions/:sessionId/scrum-poker">
-              <AppInner>
-                <ScrumPokerPage />
-              </AppInner>
-            </Route>
-            <Route path="/sessions/:sessionId/retro">
-              <RetroPage />
-            </Route>
             <Route path="/sessions/:sessionId">
               <AppInner>
-                <AppPicker />
+                <Switch>
+                  <Route path="/sessions/:sessionId/scrum-poker">
+                    <ScrumPokerPage />
+                  </Route>
+                  <Route path="/sessions/:sessionId/retro">
+                    <RetroPage />
+                  </Route>
+                  <Route path="/sessions/:sessionId/users">
+                    <SessionUsers />
+                  </Route>
+                  <Route path="/sessions/:sessionId">
+                    <AppPicker />
+                  </Route>
+                </Switch>
               </AppInner>
             </Route>
+            <SessionRedirect />
           </Switch>
         </WorkingArea>
       </Content>
@@ -176,3 +241,23 @@ export const TicketList: React.FC = observer(() => {
     </Menu>
   );
 });
+
+const SessionRedirect = () => {
+  const sessionId = useQueryStringParam("sessionId");
+
+  if (sessionId) {
+    return <Redirect to={`/sessions/${sessionId}`} />;
+  }
+
+  return <Redirect to={`/start`} />;
+};
+
+const Wrapper = styled.div`
+  padding-top: ${(p) => p.theme.spacing.lg};
+  padding-bottom: ${(p) => p.theme.spacing.lg};
+  padding-left: ${(p) => p.theme.spacing.md};
+  padding-right: ${(p) => p.theme.spacing.md};
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+`;

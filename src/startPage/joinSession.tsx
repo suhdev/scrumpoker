@@ -6,8 +6,8 @@ import {
 } from "@blueprintjs/core";
 import React, { useCallback, useState } from "react";
 import { useHistory } from "react-router-dom";
+import { useQueryStringParam } from "../hooks/useQueryStringParam";
 import { useResize } from "../hooks/useResize";
-import { useQueryStringParam } from "../login";
 
 export const JoinSession: React.FC = () => {
   const { width, onResize } = useResize();
@@ -15,9 +15,26 @@ export const JoinSession: React.FC = () => {
   const [session, setSessionId] = useState(sessionId || "");
   const history = useHistory();
 
-  const joinSession = useCallback(() => {
+  const joinSession = useCallback(async () => {
     history.push(`/sessions/${session}`);
   }, [session, history]);
+
+  const controlView = (
+    <ControlGroup fill={true} vertical={width < 400}>
+      <InputGroup
+        placeholder="Session id"
+        value={session}
+        onChange={(e) => {
+          if ((e.target.value || "").trim()) {
+            setSessionId(e.target.value);
+          }
+        }}
+      />
+      <Button icon="chevron-right" onClick={joinSession}>
+        Join
+      </Button>
+    </ControlGroup>
+  );
 
   return (
     <ResizeSensor onResize={onResize}>
@@ -29,20 +46,7 @@ export const JoinSession: React.FC = () => {
           Please note that a session id is an alphanumeric code
         </div>
         <br />
-        <ControlGroup fill={true} vertical={width < 400}>
-          <InputGroup
-            placeholder="Session id"
-            value={session}
-            onChange={(e) => {
-              if ((e.target.value || "").trim()) {
-                setSessionId(e.target.value);
-              }
-            }}
-          />
-          <Button icon="chevron-right" onClick={joinSession}>
-            Join
-          </Button>
-        </ControlGroup>
+        {controlView}
       </div>
     </ResizeSensor>
   );

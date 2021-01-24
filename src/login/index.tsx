@@ -12,17 +12,17 @@ import md5 from "md5";
 import { signIn } from "../firebase";
 import { useResize } from "../hooks/useResize";
 import { Logo } from "../assets/logo";
-import { FlexSpaceAround } from "../helpers/align";
-
-export function useQueryStringParam(key: string) {
-  return new URLSearchParams(window.location.search.slice(1)).get(key);
-}
+import { FlexSpaceAround, FlexSpaceBetween } from "../helpers/align";
+import { useHistory } from "react-router-dom";
+import { useQueryStringParam } from "../hooks/useQueryStringParam";
 
 export const LoginPage: React.FC = () => {
   const { width, onResize } = useResize();
   const { setUser } = useUserIdentity();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const history = useHistory();
+  const queryStringSessionId = useQueryStringParam("sessionId");
 
   return (
     <ResizeSensor onResize={onResize}>
@@ -51,23 +51,39 @@ export const LoginPage: React.FC = () => {
           />
         </ControlGroup>
         <br />
-        <Button
-          intent="primary"
-          onClick={async () => {
-            try {
-              const user = await signIn(email, password);
-              setUser({
-                fullname: user.user!.displayName as string,
-                email: user.user!.email as string,
-                id: user.user!.uid,
-              });
-            } catch (err) {
-              console.log(err);
-            }
-          }}
-        >
-          Sign in
-        </Button>
+        <FlexSpaceBetween>
+          <Button
+            intent="primary"
+            onClick={async () => {
+              try {
+                const user = await signIn(email, password);
+                setUser({
+                  fullname: user.user!.displayName as string,
+                  email: user.user!.email as string,
+                  id: user.user!.uid,
+                });
+              } catch (err) {
+                console.log(err);
+              }
+            }}
+          >
+            Sign in
+          </Button>
+          <Button
+            intent="success"
+            onClick={() => {
+              history.push(
+                `/signup${
+                  queryStringSessionId
+                    ? `?sessionId=${queryStringSessionId}`
+                    : ""
+                }`
+              );
+            }}
+          >
+            Sign Up
+          </Button>
+        </FlexSpaceBetween>
       </Wrapper>
     </ResizeSensor>
   );

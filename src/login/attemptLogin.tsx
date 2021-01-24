@@ -5,9 +5,11 @@ import styled from "styled-components";
 import { LoginPage } from ".";
 import { useUserIdentity } from "../auth/context";
 import { getCurrentUser } from "../firebase";
+import { useQueryStringParam } from "../hooks/useQueryStringParam";
 
 export const AttemptLoginPage: React.FC = () => {
   const { user } = useUserIdentity();
+  const sessionId = useQueryStringParam("sessionId");
 
   const checkLogin = useCallback(async () => {
     const currentUser = getCurrentUser();
@@ -17,7 +19,7 @@ export const AttemptLoginPage: React.FC = () => {
   }, []);
 
   if (user) {
-    return <Redirect to="/start" />;
+    return <Redirect to={sessionId ? `/sessions/${sessionId}` : `/start`} />;
   }
 
   return (

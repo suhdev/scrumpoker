@@ -1,19 +1,27 @@
-import { makeObservable, observable, action } from "mobx";
+import { makeObservable, observable, action, runInAction } from "mobx";
 import { IUserIdentity } from "../auth/context";
-import { db, getSessionUserPermissionsRef } from "../firebase";
+import { getSessionUserPermissionsRef, getSessionUsersRef } from "../firebase";
 import { toaster } from "../init";
 
+export interface ISessionUserIdentity extends IUserIdentity {
+  permissions: {
+    isOwner: boolean;
+  };
+}
+
 export class UserListModel {
-  users: IUserIdentity[] = [];
+  users: ISessionUserIdentity[] = [];
+  currentUser: IUserIdentity | null = null;
 
   constructor() {
     makeObservable(this, {
       users: observable.ref,
+      currentUser: observable.ref,
     });
   }
 
   @action.bound
-  add(user: IUserIdentity, notify?: boolean) {
+  add(user: ISessionUserIdentity, notify?: boolean) {
     if (!this.users.find((u) => u.id === user.id)) {
       this.users = [...this.users, user];
 
@@ -46,7 +54,7 @@ export class UserListModel {
   }
 
   @action.bound
-  update(user: IUserIdentity) {
+  update(user: ISessionUserIdentity) {
     const idx = this.users.findIndex((u) => u.id === user.id);
     if (idx === -1) {
       this.add(user);
@@ -64,8 +72,11 @@ export class UserListModel {
       .set(true);
   }
 
-  setup(sessionId: string, user: IUserIdentity) {
-    const ref = db.ref(`sessions`).child(sessionId).child(`users`);
+  setup(sessionId: string, currentUser: IUserIdentity) {
+    runInAction(() => {
+      this.currentUser = currentUser;
+    });
+    const ref = getSessionUsersRef(sessionId);
 
     ref.on("child_added", (snapshot) => {
       const u = snapshot.val();
@@ -80,11 +91,11 @@ export class UserListModel {
       this.update(snapshot.val());
     });
 
-    db.ref(`sessions`)
-      .child(sessionId)
-      .child(`users`)
-      .child(`${user!.id}`)
-      .set(user);
+    ref.once("value", (snapshot) => {
+      runInAction(() => {
+        this.users = Object.values(snapshot.val() || {});
+      });
+    });
 
     return () => {
       ref.off("child_changed");

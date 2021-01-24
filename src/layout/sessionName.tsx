@@ -1,4 +1,4 @@
-import { ControlGroup, InputGroup, Button } from "@blueprintjs/core";
+import { ControlGroup, InputGroup, Button, Navbar } from "@blueprintjs/core";
 import React, { useState, useCallback } from "react";
 import { Async } from "react-async";
 import { getSessionRef } from "../firebase";
@@ -30,28 +30,31 @@ export const SessionName: React.FC<{ sessionId?: string }> = ({
               {name || "Untitled session"}
             </div>
           ) : (
-            <ControlGroup fill={true} vertical={false}>
-              <InputGroup
-                placeholder="Session name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-              <Button
-                icon="stop"
-                onClick={() => {
-                  setMode(false);
-                }}
-              />
-              <Button
-                icon="tick"
-                onClick={async () => {
-                  if (sessionId) {
-                    await getSessionRef(sessionId).child("name").set(name);
+            <>
+              <ControlGroup fill={true} vertical={false}>
+                <InputGroup
+                  placeholder="Session name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+                <Button
+                  icon="stop"
+                  onClick={() => {
                     setMode(false);
-                  }
-                }}
-              />
-            </ControlGroup>
+                  }}
+                />
+                <Button
+                  icon="tick"
+                  onClick={async () => {
+                    if (sessionId) {
+                      await getSessionRef(sessionId).child("name").set(name);
+                      setMode(false);
+                    }
+                  }}
+                />
+              </ControlGroup>
+              <Navbar.Divider />
+            </>
           )
         }
       </Async.Resolved>

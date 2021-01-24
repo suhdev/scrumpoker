@@ -13,13 +13,13 @@ import { useSessionIdParam } from "../hooks/useSessionIdParam";
 import logo from "../assets/logo.svg";
 import { useResize } from "../hooks/useResize";
 import { Select } from "@blueprintjs/select";
-import { ITicketInfo } from "../scrumPoker/scrumPokerModel";
-import { CenterAlignedRow, FlexRow } from "../helpers/align";
+import { CenterAlignedRow } from "../helpers/align";
 import { getScrumPokerTicketsRef } from "../firebase";
 
 export const TopNav: React.FC = () => {
   const { width, onResize } = useResize();
   const sessionId = useSessionIdParam();
+  const history = useHistory();
 
   return (
     <ResizeSensor onResize={onResize}>
@@ -27,27 +27,49 @@ export const TopNav: React.FC = () => {
         <Navbar>
           <Navbar.Group align={Alignment.LEFT}>
             <Navbar.Heading style={{ marginRight: "0px" }}>
-              <img style={{ height: "32px" }} src={logo} alt="Scrum Miester" />
+              <img
+                onClick={() => {
+                  history.push("/start");
+                }}
+                style={{ height: "32px", cursor: "pointer" }}
+                src={logo}
+                alt="Scrum Miester"
+              />
             </Navbar.Heading>
             <Navbar.Divider />
             <SessionName sessionId={sessionId} />
-            <Navbar.Divider />
+
             <Route path="/sessions/:sessionId">
               <Switch>
                 <Route path="/sessions/:sessionId/scrum-poker/:ticketId">
-                  <TicketSelection />
+                  <TicketSelection width={width} />
                 </Route>
                 <Route path="/sessions/:sessionId">
-                  <TicketSelection />
+                  <TicketSelection width={width} />
                 </Route>
               </Switch>
+              <Route
+                render={({
+                  match: {
+                    params: { sessionId },
+                  },
+                }) => (
+                  <Link
+                    to={`/sessions/${sessionId}/users`}
+                    className="bp3-menu-item bp3-icon-people"
+                    title="Users"
+                  >
+                    {width < 500 ? "" : "Users"}
+                  </Link>
+                )}
+              />
             </Route>
 
             <Link
               to="/start"
               className="bp3-menu-item bp3-icon-new-object bp3-intent-primary"
             >
-              Join Session
+              {width > 500 ? "Join Session" : ""}
             </Link>
             {sessionId ? (
               <>
@@ -88,7 +110,7 @@ export const TopNav: React.FC = () => {
   );
 };
 
-const TicketSelection: React.FC = () => {
+const TicketSelection: React.FC<{ width: number }> = ({ width }) => {
   const [items, setItems] = useState<string[]>([]);
   const [ticket, setTicket] = useState<string | null>(null);
   const sessionId = useSessionIdParam();
@@ -102,7 +124,7 @@ const TicketSelection: React.FC = () => {
         history.push(`/sessions/${sessionId}/scrum-poker/${item}`);
       }
     },
-    [setTicket, history]
+    [setTicket, history, sessionId]
   );
 
   useEffect(() => {
@@ -134,7 +156,7 @@ const TicketSelection: React.FC = () => {
 
   return (
     <CenterAlignedRow>
-      <span>Ticket:&nbsp;&nbsp;</span>
+      {width > 500 ? <span>Ticket:&nbsp;&nbsp;</span> : null}
       <TicketSelect
         items={items}
         activeItem={currentTicketId || ticket}

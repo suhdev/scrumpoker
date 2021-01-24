@@ -1,16 +1,17 @@
-import { Button, ControlGroup, InputGroup, Spinner } from "@blueprintjs/core";
+import {
+  Button,
+  ControlGroup,
+  InputGroup,
+  ResizeSensor,
+  Spinner,
+} from "@blueprintjs/core";
 import { observer, Observer } from "mobx-react";
 import React, { useEffect, useState } from "react";
 import { useParams, useHistory } from "react-router-dom";
 import styled from "styled-components";
 import { useUserIdentity, IUserIdentity } from "../auth/context";
-import {
-  CenterAlignedRow,
-  Flex,
-  FlexRow,
-  FlexSpaceAround,
-  FlexSpaceBetween,
-} from "../helpers/align";
+import { CenterAlignedRow, FlexSpaceBetween } from "../helpers/align";
+import { useResize } from "../hooks/useResize";
 import { ScrumPokerModel } from "./scrumPokerModel";
 import { VotesTable } from "./votesTable";
 
@@ -97,9 +98,9 @@ const VoteInput: React.FC<{ model: ScrumPokerModel }> = observer(
     const { ticketId } = useParams() as { ticketId: string };
     return model.percentage < 1 ? (
       <VoteWrapper>
-        <h4 className="bp3-heading">
+        <h3 className="bp3-heading">
           Enter your vote below for ticket: {ticketId}
-        </h4>
+        </h3>
         <ControlGroup fill={true} vertical={false}>
           {[1, 2, 3, 5, 8, 13, 21].map((ticket) => (
             <Observer key={ticket}>
@@ -138,37 +139,37 @@ const VoteButton = styled(Button)`
 const GoToTicket: React.FC<{ model: ScrumPokerModel }> = observer(
   ({ model }) => {
     const [value, setValue] = useState("");
+    const { onResize, width } = useResize();
     const { sessionId } = useParams() as {
       sessionId: string;
       ticketId: string;
     };
     const history = useHistory();
     return model.percentage >= 1 ? (
-      <>
-        <br />
-        <h3>Enter ticket number to vote on next</h3>
-        <ControlGroup fill={true} vertical={false}>
-          <InputGroup
-            placeholder="Ticket number"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-          />
-          <Button
-            icon="chevron-right"
-            onClick={() => {
-              if (value.trim()) {
-                history.push(
-                  `/sessions/${sessionId}/scrum-poker/${value
-                    .trim()
-                    .toLowerCase()}`
-                );
-              }
-            }}
-          >
-            Go to ticket
-          </Button>
-        </ControlGroup>
-      </>
+      <ResizeSensor onResize={onResize}>
+        <div>
+          <h3>Enter ticket number to vote on next</h3>
+          <ControlGroup fill={true} vertical={width <= 500}>
+            <InputGroup
+              placeholder="Ticket number"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+            />
+            <Button
+              icon="chevron-right"
+              onClick={() => {
+                if (value.trim()) {
+                  history.push(
+                    `/sessions/${sessionId}/scrum-poker/${value.trim()}`
+                  );
+                }
+              }}
+            >
+              Go to ticket
+            </Button>
+          </ControlGroup>
+        </div>
+      </ResizeSensor>
     ) : null;
   }
 );
